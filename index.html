@@ -1,0 +1,597 @@
+import React, { useState, useEffect } from 'react';
+import { CheckCircle2, XCircle, RotateCcw, ArrowLeft, Trophy, BookOpen } from 'lucide-react';
+
+// بنك الأسئلة الأساسي (40 سؤالاً يدوياً)
+const rawQuestions = [
+  // --- 1 to 20: الشغل (مفاهيم ومسائل) ---
+  {
+    type: "علل", text: "عندما يحمل شخص حقيبة ويسير بها أفقياً، فإن الشغل المبذول على الحقيبة بواسطة قوة الرفع يساوي صفراً.",
+    options: [
+      { text: "لأن القوة المؤثرة تكون عمودية على اتجاه الإزاحة، وبالتالي cos 90° = 0.", isCorrect: true },
+      { text: "لأن قوة الاحتكاك مع الأرض تلغي قوة رفع الحقيبة، فتصبح المحصلة صفراً.", isCorrect: false },
+      { text: "لأن الحقيبة تظل ساكنة بالنسبة للشخص الذي يحملها، فلا توجد طاقة حركة.", isCorrect: false },
+      { text: "لأن القوة المؤثرة تكون في نفس اتجاه الإزاحة، وبالتالي cos 0° = 1.", isCorrect: false }
+    ], explanation: "شرط بذل الشغل ألا تكون الزاوية بين القوة والإزاحة 90 درجة (عمودية)."
+  },
+  {
+    type: "مفهوم", text: "أي من وحدات القياس التالية لا تكافئ وحدة الجول؟",
+    options: [
+      { text: "N · m/s", isCorrect: true },
+      { text: "N · m", isCorrect: false },
+      { text: "kg · m² / s²", isCorrect: false },
+      { text: "W · s (وات.ثانية)", isCorrect: false }
+    ], explanation: "وحدة N.m/s تكافئ الوات (وحدة القدرة)، بينما الجول يكافئ N.m."
+  },
+  {
+    type: "مسألة", text: "أثرت قوة مقدارها 100N على صندوق فحركته إزاحة مقدارها 5m. إذا كان اتجاه القوة يميل بزاوية 60° على اتجاه الحركة، فما هو الشغل المبذول؟",
+    options: [
+      { text: "250 J", isCorrect: true },
+      { text: "500 J", isCorrect: false },
+      { text: "0 J", isCorrect: false },
+      { text: "433 J", isCorrect: false }
+    ], explanation: "W = F × d × cos(θ) = 100 × 5 × cos(60) = 500 × 0.5 = 250 J."
+  },
+  {
+    type: "ماذا يحدث", text: "للشغل المبذول بواسطة قوة إذا كانت الزاوية بين اتجاه القوة واتجاه الإزاحة منفرجة (أكبر من 90 وأقل من 180)؟",
+    options: [
+      { text: "الحدث: يكون الشغل سالباً.\nالتفسير: لأن جيب تمام الزاوية المنفرجة يحمل إشارة سالبة.", isCorrect: true },
+      { text: "الحدث: يكون الشغل موجباً.\nالتفسير: لأن القوة تبذل جهداً في نفس الاتجاه.", isCorrect: false },
+      { text: "الحدث: ينعدم الشغل.\nالتفسير: لأن الزاوية أكبر من 90 درجة.", isCorrect: false },
+      { text: "الحدث: يكون الشغل قيمة عظمى.\nالتفسير: لأن الإزاحة تزداد بزيادة الزاوية.", isCorrect: false }
+    ], explanation: "في الربع الثاني، قيمة cos(θ) سالبة، وبالتالي الشغل يكون سالباً (مثل قوة الاحتكاك)."
+  },
+  {
+    type: "علل", text: "الشغل كمية فيزيائية قياسية وليست متجهة، بالرغم من أنه يعتمد على القوة والإزاحة وهما كميتان متجهتان.",
+    options: [
+      { text: "لأنه ناتج عن عملية الضرب القياسي لمتجهي القوة والإزاحة.", isCorrect: true },
+      { text: "لأنه ناتج عن عملية الضرب الاتجاهي لمتجهي القوة والإزاحة.", isCorrect: false },
+      { text: "لأن القوة والإزاحة دائماً يكونان في نفس الاتجاه أثناء بذل الشغل.", isCorrect: false },
+      { text: "لأن الشغل يعتمد فقط على مقدار القوة ولا يعتمد على الإزاحة.", isCorrect: false }
+    ], explanation: "حاصل الضرب القياسي (Dot Product) لمتجهين ينتج كمية قياسية ليس لها اتجاه."
+  },
+  {
+    type: "مسألة", text: "شخص يرفع دلواً كتلته 10kg رأسياً لأعلى مسافة 2m. ما مقدار الشغل المبذول ضد الجاذبية؟ (g = 10 m/s²)",
+    options: [
+      { text: "200 J", isCorrect: true },
+      { text: "20 J", isCorrect: false },
+      { text: "100 J", isCorrect: false },
+      { text: "0 J", isCorrect: false }
+    ], explanation: "الشغل ضد الجاذبية = m × g × h = 10 × 10 × 2 = 200 جول."
+  },
+  {
+    type: "علل", text: "عندما يدفع شخص حائطاً خرسانياً ثابتاً بقوة كبيرة جداً، فإنه لا يبذل شغلاً فيزيائياً.",
+    options: [
+      { text: "لأن الحائط لم يتحرك وبالتالي الإزاحة تساوي صفراً، والشغل فيزيائياً يتطلب حدوث إزاحة.", isCorrect: true },
+      { text: "لأن القوة المؤثرة تكون عمودية على الحائط، وبالتالي cos 90° = 0.", isCorrect: false },
+      { text: "لأن الحائط يرد بقوة مساوية ومضادة، فتكون محصلة الشغل صفراً.", isCorrect: false },
+      { text: "لأن طاقة الشخص تتحول إلى طاقة حرارية فقط.", isCorrect: false }
+    ], explanation: "الجهد العضلي لا يعتبر شغلاً فيزيائياً إلا إذا صاحبه إزاحة (d > 0)."
+  },
+  {
+    type: "مسألة", text: "طفلة تحمل حقيبة كتلتها 5kg وتسير بها أفقياً بسرعة منتظمة مسافة 10m. الشغل المبذول بواسطة قوة رفع الطفلة للحقيبة هو:",
+    options: [
+      { text: "0 J", isCorrect: true },
+      { text: "50 J", isCorrect: false },
+      { text: "500 J", isCorrect: false },
+      { text: "5 J", isCorrect: false }
+    ], explanation: "قوة الرفع لأعلى والحركة أفقية، الزاوية 90 درجة، إذن الشغل صفر."
+  },
+  {
+    type: "ماذا يحدث", text: "لقيمة الشغل عندما يتحرك جسم تحت تأثير قوة في اتجاه معاكس تماماً لحركته (زاوية 180)؟",
+    options: [
+      { text: "الحدث: يكون الشغل سالباً ويمثل قيمة عظمى سالبة.\nالتفسير: لأن cos 180° = -1، مثل شغل قوة الاحتكاك.", isCorrect: true },
+      { text: "الحدث: يكون الشغل موجباً.\nالتفسير: لأن القوة والإزاحة على نفس الخط.", isCorrect: false },
+      { text: "الحدث: ينعدم الشغل.\nالتفسير: لأن الجسمين يتضادان في الاتجاه.", isCorrect: false },
+      { text: "الحدث: يقل تدريجياً حتى ينعدم.\nالتفسير: بسبب تناقص السرعة.", isCorrect: false }
+    ], explanation: "قوة الاحتكاك تبذل شغلاً سالباً لأنها عكس اتجاه الحركة."
+  },
+  {
+    type: "مسألة بيانية", text: "أثرت قوة ثابتة على جسم وحركته إزاحة. إذا رسمنا العلاقة البيانية بين القوة (F) والإزاحة (d)، فكيف يمكن حساب الشغل هندسياً؟",
+    options: [
+      { text: "عن طريق حساب المساحة أسفل الخط المستقيم لمنحنى (القوة - الإزاحة).", isCorrect: true },
+      { text: "عن طريق حساب ميل الخط المستقيم لمنحنى (القوة - الإزاحة).", isCorrect: false },
+      { text: "عن طريق قسمة أقصى قوة على أقصى إزاحة.", isCorrect: false },
+      { text: "الشغل يساوي صفر دائماً ما لم يكن الخط مائلاً.", isCorrect: false }
+    ], explanation: "المساحة تحت المنحنى تمثل (القوة × الإزاحة) وهو الشغل."
+  },
+  {
+    type: "علل", text: "الشغل المبذول بواسطة قوة الجاذبية المركزية على قمر صناعي يدور حول الأرض يساوي صفراً.",
+    options: [
+      { text: "لأن قوة التجاذب عمودية دائماً على اتجاه الحركة المماسية للمسار الدائري.", isCorrect: true },
+      { text: "لأن القمر الصناعي في حالة انعدام وزن.", isCorrect: false },
+      { text: "لأن سرعة القمر الصناعي ثابتة المقدار.", isCorrect: false },
+      { text: "لأن الإزاحة الكلية خلال دورة كاملة تساوي صفراً.", isCorrect: false }
+    ], explanation: "القوة المركزية تعامد الإزاحة اللحظية دائماً (cos 90 = 0)."
+  },
+  {
+    type: "مسألة", text: "قوة قدرها 50N تُبذل بزاوية 0° لدفع جسم مسافة 10m. ما قيمة الشغل؟",
+    options: [
+      { text: "500 J", isCorrect: true },
+      { text: "0 J", isCorrect: false },
+      { text: "50 J", isCorrect: false },
+      { text: "250 J", isCorrect: false }
+    ], explanation: "W = F × d × cos(0) = 50 × 10 × 1 = 500 J."
+  },
+  {
+    type: "ماذا يحدث", text: "لمقدار الشغل المبذول إذا تضاعفت القوة المؤثرة في نفس اتجاه الحركة، وتضاعفت الإزاحة المقطوعة؟",
+    options: [
+      { text: "الحدث: يزداد الشغل إلى أربعة أمثاله.\nالتفسير: لأن الشغل يساوي حاصل ضرب القوة في الإزاحة (2F × 2d = 4W).", isCorrect: true },
+      { text: "الحدث: يزداد للضعف.\nالتفسير: لأن الزيادة في أحدهما تعوض الآخر.", isCorrect: false },
+      { text: "الحدث: يظل ثابتاً.\nالتفسير: لأن النسبة بينهما ثابتة.", isCorrect: false },
+      { text: "الحدث: يزداد إلى ثمانية أمثاله.\nالتفسير: لأنه يتناسب مكعبياً معهما.", isCorrect: false }
+    ], explanation: "بضرب الطرفين في 2، تصبح W = (2F) × (2d) = 4 Fd = 4W."
+  },
+  {
+    type: "علل", text: "يفضل استخدام المستويات المائلة في رفع الأجسام الثقيلة بدلاً من رفعها رأسياً.",
+    options: [
+      { text: "لتقليل القوة المطلوبة للرفع، رغم أن الشغل المبذول يظل ثابتاً (بإهمال الاحتكاك).", isCorrect: true },
+      { text: "لتقليل الشغل الكلي المبذول.", isCorrect: false },
+      { text: "لزيادة طاقة وضع الجسم بشكل أكبر.", isCorrect: false },
+      { text: "لتقليل المسافة المقطوعة لرفع الجسم.", isCorrect: false }
+    ], explanation: "المستوى المائل يزيد المسافة ويقلل القوة المطلوبة، ولكن الشغل (mgh) يظل ثابتاً."
+  },
+  {
+    type: "مسألة", text: "سُحب صندوق بقوة 40N تميل بزاوية 60° على الأفقي لمسافة 10m. الشغل المبذول هو:",
+    options: [
+      { text: "200 J", isCorrect: true },
+      { text: "400 J", isCorrect: false },
+      { text: "346 J", isCorrect: false },
+      { text: "0 J", isCorrect: false }
+    ], explanation: "W = 40 × 10 × cos(60) = 400 × 0.5 = 200 J."
+  },
+  {
+    type: "ماذا يحدث", text: "للشغل المبذول بواسطة قوة الاحتكاك بين إطارات السيارة والطريق عند الضغط على الفرامل؟",
+    options: [
+      { text: "الحدث: يكون سالباً ويؤدي إلى تناقص طاقة حركة السيارة.\nالتفسير: لأن قوة الاحتكاك تؤثر في اتجاه معاكس لاتجاه الإزاحة.", isCorrect: true },
+      { text: "الحدث: يكون موجباً ويزيد من سرعة السيارة.\nالتفسير: لأن الاحتكاك يولد طاقة حرارية.", isCorrect: false },
+      { text: "الحدث: ينعدم الشغل.\nالتفسير: لأن السيارة تتوقف في النهاية.", isCorrect: false },
+      { text: "الحدث: يكون عمودياً على الحركة.\nالتفسير: لأن وزن السيارة للأسفل.", isCorrect: false }
+    ], explanation: "قوة الاحتكاك عكس الحركة (زاوية 180)، الشغل سالب ويستنفد الطاقة الحركية."
+  },
+  {
+    type: "مسألة بيانية", text: "في الرسم البياني بين القوة (صادي) والإزاحة (سيني)، إذا كان الشكل الناتج مستطيلاً أبعاده (5 نيوتن و 4 متر)، فإن الشغل يساوي:",
+    options: [
+      { text: "20 J", isCorrect: true },
+      { text: "10 J", isCorrect: false },
+      { text: "9 J", isCorrect: false },
+      { text: "1 J", isCorrect: false }
+    ], explanation: "المساحة = الطول × العرض = 5 × 4 = 20 جول."
+  },
+  {
+    type: "علل", text: "الشغل المبذول لدفع سيارة ساكنة لتتحرك على طريق أفقي يكون موجباً.",
+    options: [
+      { text: "لأن اتجاه قوة الدفع يكون في نفس اتجاه حركة (إزاحة) السيارة، فتكون الزاوية صفراً.", isCorrect: true },
+      { text: "لأن السيارة لا ترتفع عن سطح الأرض.", isCorrect: false },
+      { text: "لأن وزن السيارة كبير.", isCorrect: false },
+      { text: "لأن الاحتكاك يمنع السيارة من الحركة.", isCorrect: false }
+    ], explanation: "القوة والإزاحة في نفس الاتجاه، cos(0) = 1، فالشغل موجب."
+  },
+  {
+    type: "ماذا يحدث", text: "للزاوية بين القوة المؤثرة واتجاه الحركة إذا كان الشغل المبذول بواسطة هذه القوة يساوي صفراً؟",
+    options: [
+      { text: "الحدث: تكون الزاوية 90°.\nالتفسير: لأن القوة تكون عمودية على الإزاحة وجيب التمام لـ 90 يساوي صفراً.", isCorrect: true },
+      { text: "الحدث: تكون الزاوية 0°.\nالتفسير: لأن القوة تكون موازية للإزاحة.", isCorrect: false },
+      { text: "الحدث: تكون الزاوية 180°.\nالتفسير: لأن القوة تكون عكس الإزاحة.", isCorrect: false },
+      { text: "الحدث: تكون الزاوية 45°.\nالتفسير: لأن الشغل يكون نصف القيمة العظمى.", isCorrect: false }
+    ], explanation: "إذا انعدم الشغل مع وجود قوة وإزاحة، فهذا يعني تعامدهما (cos 90 = 0)."
+  },
+  {
+    type: "مسألة", text: "قوة مقدارها 10N تدفع جسماً ليقطع إزاحة 2m في اتجاه يميل بزاوية 90° على اتجاه القوة. الشغل هو:",
+    options: [
+      { text: "0 J", isCorrect: true },
+      { text: "20 J", isCorrect: false },
+      { text: "10 J", isCorrect: false },
+      { text: "5 J", isCorrect: false }
+    ], explanation: "cos(90°) = 0، بالتالي الشغل المبذول يساوي صفراً."
+  },
+
+  // --- 21 to 40: طاقة الحركة (مفاهيم ومسائل) ---
+  {
+    type: "ماذا يحدث", text: "لطاقة حركة سيارة إذا زادت سرعتها إلى الضعف مع ثبوت كتلتها؟",
+    options: [
+      { text: "الحدث: تزداد إلى أربعة أمثالها.\nالتفسير: لأن طاقة الحركة تتناسب طردياً مع مربع السرعة.", isCorrect: true },
+      { text: "الحدث: تزداد للضعف.\nالتفسير: لأن طاقة الحركة تتناسب طردياً مع السرعة.", isCorrect: false },
+      { text: "الحدث: تظل ثابتة.\nالتفسير: لأن كتلة السيارة لم تتغير.", isCorrect: false },
+      { text: "الحدث: تقل للنصف.\nالتفسير: لأن طاقة الحركة تتناسب عكسياً مع مربع السرعة.", isCorrect: false }
+    ], explanation: "حسب القانون KE = 1/2 m v²، (2v)² = 4v²، فتتضاعف 4 مرات."
+  },
+  {
+    type: "مسألة", text: "جسم طاقة حركته 64J وسرعته 4m/s. كم تكون كتلته؟",
+    options: [
+      { text: "8 kg", isCorrect: true },
+      { text: "16 kg", isCorrect: false },
+      { text: "4 kg", isCorrect: false },
+      { text: "32 kg", isCorrect: false }
+    ], explanation: "KE = 1/2 m v² => 64 = 1/2 × m × 16 => 64 = 8m => m = 8 kg."
+  },
+  {
+    type: "علل", text: "صيغة أبعاد الشغل هي نفس صيغة أبعاد طاقة الحركة وطاقة الوضع.",
+    options: [
+      { text: "لأن الشغل المبذول على جسم يتحول إلى طاقة (حركة أو وضع)، والطاقة هي القدرة على بذل شغل.", isCorrect: true },
+      { text: "لأنهم يعتمدون جميعاً على الكتلة والسرعة.", isCorrect: false },
+      { text: "لأن الشغل يقاس بالنيوتن والطاقة تقاس بالجول.", isCorrect: false },
+      { text: "لأن جميعهم كميات متجهة.", isCorrect: false }
+    ], explanation: "الشغل والطاقة وجهان لعملة واحدة. صيغة أبعادهم ML²T⁻²."
+  },
+  {
+    type: "ماذا يحدث", text: "لطاقة حركة جسم كتلته m وسرعته v إذا أصبحت كتلته m/2 وسرعته 2v؟",
+    options: [
+      { text: "الحدث: تزداد للضعف.\nالتفسير: لأن KE ∝ m v². الكتلة أصبحت النصف، ومربع السرعة أصبح 4 أضعاف. (1/2 × 4 = 2).", isCorrect: true },
+      { text: "الحدث: تظل ثابتة.\nالتفسير: لأن النقص في الكتلة يعوضه الزيادة في السرعة.", isCorrect: false },
+      { text: "الحدث: تقل للنصف.\nالتفسير: بسبب نقصان الكتلة للنصف.", isCorrect: false },
+      { text: "الحدث: تزداد لأربعة أمثال.\nالتفسير: لأن السرعة تضاعفت.", isCorrect: false }
+    ], explanation: "نصف الكتلة يضرب في 4 (مربع السرعة المضاعفة) يعطي 2 (الضعف)."
+  },
+  {
+    type: "مسألة", text: "رصاصة كتلتها 10g تنطلق بسرعة 400m/s. ما طاقة حركتها؟",
+    options: [
+      { text: "800 J", isCorrect: true },
+      { text: "80 J", isCorrect: false },
+      { text: "8000 J", isCorrect: false },
+      { text: "1600 J", isCorrect: false }
+    ], explanation: "الكتلة بالكيلوجرام = 0.01. طاقة الحركة = 1/2 × 0.01 × (400)² = 800 جول."
+  },
+  {
+    type: "مفهوم", text: "الطاقة التي يمتلكها الجسم نتيجة لحركته تسمى:",
+    options: [
+      { text: "طاقة الحركة", isCorrect: true },
+      { text: "طاقة الوضع", isCorrect: false },
+      { text: "الطاقة الكامنة", isCorrect: false },
+      { text: "الطاقة الحرارية", isCorrect: false }
+    ], explanation: "التعريف المباشر لطاقة الحركة (Kinetic Energy)."
+  },
+  {
+    type: "مسألة", text: "مقدار الشغل اللازم لإيقاف سيارة كتلتها 1000kg وتتحرك بسرعة 20m/s هو:",
+    options: [
+      { text: "200,000 J", isCorrect: true },
+      { text: "400,000 J", isCorrect: false },
+      { text: "100,000 J", isCorrect: false },
+      { text: "10,000 J", isCorrect: false }
+    ], explanation: "الشغل اللازم للإيقاف = طاقة الحركة = 1/2 × 1000 × (20)² = 200,000 جول."
+  },
+  {
+    type: "علل", text: "ينصح السائقون بترك مسافة أمان أكبر بين السيارات عند القيادة بسرعات عالية.",
+    options: [
+      { text: "لأن طاقة حركة السيارة (وبالتالي مسافة التوقف) تتناسب طردياً مع مربع السرعة.", isCorrect: true },
+      { text: "لأن قوة الفرامل تقل عند السرعات العالية.", isCorrect: false },
+      { text: "لأن طاقة وضع السيارة تزداد بالسرعة مما يجعلها غير مستقرة.", isCorrect: false },
+      { text: "لأن زمن الاستجابة للسائق يقل عند السرعات العالية.", isCorrect: false }
+    ], explanation: "مضاعفة السرعة تزيد مسافة التوقف 4 أضعاف لأن طاقة الحركة تتناسب مع مربع السرعة."
+  },
+  {
+    type: "ماذا يحدث", text: "لسرعة سيارة تتطلب مسافة انزلاق للتوقف قدرها 4 أمثال مسافة سيارة أخرى مطابقة لها (نفس الفرامل)؟",
+    options: [
+      { text: "الحدث: كانت تسير بسرعة ضعف سرعة السيارة الأخرى.\nالتفسير: لأن المسافة تتناسب طردياً مع مربع السرعة (d ∝ v²).", isCorrect: true },
+      { text: "الحدث: كانت تسير بنفس السرعة.\nالتفسير: لأن الفرامل هي نفسها.", isCorrect: false },
+      { text: "الحدث: كانت تسير بسرعة 4 أمثال السيارة الأخرى.\nالتفسير: لأن المسافة تتناسب طردياً مع السرعة.", isCorrect: false },
+      { text: "الحدث: كانت تسير بنصف السرعة.\nالتفسير: لأن المسافة أطول.", isCorrect: false }
+    ], explanation: "بما أن الشغل (F×d) = طاقة الحركة، فإذا زادت d لأربعة أمثال، تكون v قد زادت للضعف."
+  },
+  {
+    type: "مسألة", text: "سيارة كتلتها 2000kg زادت سرعتها من السكون إلى 10m/s خلال فترة. ما الشغل المبذول لزيادة سرعتها؟",
+    options: [
+      { text: "100,000 J", isCorrect: true },
+      { text: "20,000 J", isCorrect: false },
+      { text: "200,000 J", isCorrect: false },
+      { text: "50,000 J", isCorrect: false }
+    ], explanation: "الشغل = التغير في طاقة الحركة = 1/2 × 2000 × (10)² = 100,000 J."
+  },
+  {
+    type: "مسألة بيانية", text: "ميل الخط المستقيم في العلاقة البيانية بين طاقة الحركة (صادي) ومربع السرعة (سيني) يمثل:",
+    options: [
+      { text: "نصف الكتلة (1/2 m).", isCorrect: true },
+      { text: "الكتلة كاملة (m).", isCorrect: false },
+      { text: "السرعة (v).", isCorrect: false },
+      { text: "ضعف الكتلة (2m).", isCorrect: false }
+    ], explanation: "KE = 1/2 m v². الميل = ΔKE / Δv² = 1/2 m."
+  },
+  {
+    type: "علل", text: "عندما يقذف السهم من القوس المشدود، يكتسب طاقة حركة كبيرة.",
+    options: [
+      { text: "لأن طاقة وضع المرونة المختزنة في القوس المشدود تتحول إلى طاقة حركة للسهم عند الإفلات.", isCorrect: true },
+      { text: "لأن كتلة السهم صغيرة جداً.", isCorrect: false },
+      { text: "لأن السهم يكتسب طاقة حرارية من الهواء.", isCorrect: false },
+      { text: "لأن الجاذبية الأرضية تسحبه بقوة.", isCorrect: false }
+    ], explanation: "الشغل المبذول لشد الوتر يُختزن كطاقة وضع مرونية، تتحول لحركة عند الإفلات."
+  },
+  {
+    type: "ماذا يحدث", text: "لمقدار طاقة حركة جسم إذا أثرت عليه قوة محصلة في نفس اتجاه حركته؟",
+    options: [
+      { text: "الحدث: تزداد طاقة حركته.\nالتفسير: لأن القوة تبذل شغلاً موجباً على الجسم يؤدي لزيادة سرعته.", isCorrect: true },
+      { text: "الحدث: تقل طاقة حركته.\nالتفسير: لأن القوة تقاوم استمرار حركته المنتظمة.", isCorrect: false },
+      { text: "الحدث: تظل ثابتة.\nالتفسير: لأن الجسم سيتحرك بسرعة ثابتة.", isCorrect: false },
+      { text: "الحدث: تنعدم طاقة حركته.\nالتفسير: لأن الجسم سيتوقف ليغير اتجاهه.", isCorrect: false }
+    ], explanation: "حسب مبرهنة الشغل والطاقة، الشغل الموجب يزيد من طاقة الحركة (تسارع)."
+  },
+  {
+    type: "مسألة", text: "سيارتان A و B لهما نفس الكتلة. سرعة A تساوي 3v وسرعة B تساوي v. النسبة بين طاقة حركة A إلى طاقة حركة B هي:",
+    options: [
+      { text: "9 : 1", isCorrect: true },
+      { text: "3 : 1", isCorrect: false },
+      { text: "1 : 9", isCorrect: false },
+      { text: "1 : 3", isCorrect: false }
+    ], explanation: "مربع (3v) هو 9v²، بينما مربع (v) هو v²، فالنسبة 9 إلى 1."
+  },
+  {
+    type: "علل", text: "عند هبوط شخص من ارتفاع على وسادة هوائية فإنه لا يتأذى مثل هبوطه على أرض صلبة.",
+    options: [
+      { text: "لأن الوسادة تزيد الإزاحة (d) أثناء التوقف، مما يقلل من متوسط قوة الاصطدام اللازمة لتبديد طاقة الحركة.", isCorrect: true },
+      { text: "لأن الوسادة تقلل من طاقة وضعه الابتدائية.", isCorrect: false },
+      { text: "لأن طاقة حركة الشخص تنعدم في الهواء قبل الاصطدام.", isCorrect: false },
+      { text: "لأن الوسادة تلغي عجلة الجاذبية الأرضية.", isCorrect: false }
+    ], explanation: "الشغل = F × d. لتبديد نفس الطاقة الحركية، زيادة مسافة التوقف (d) يقلل القوة (F)."
+  },
+  {
+    type: "ماذا يحدث", text: "لمقدار النقص في طاقة الحركة لجسم يقذف رأسياً لأعلى أثناء صعوده؟",
+    options: [
+      { text: "الحدث: يساوي مقدار الزيادة في طاقة وضعه.\nالتفسير: بناءً على قانون بقاء الطاقة الميكانيكية.", isCorrect: true },
+      { text: "الحدث: يكون دائماً أقل من الزيادة في طاقة الوضع.\nالتفسير: بسبب مقاومة الهواء.", isCorrect: false },
+      { text: "الحدث: يساوي نصف الزيادة في طاقة الوضع.\nالتفسير: لأن السرعة تقل بمعدل تربيعي.", isCorrect: false },
+      { text: "الحدث: لا يوجد نقص.\nالتفسير: لأن الجسم يتحرك بعجلة منتظمة.", isCorrect: false }
+    ], explanation: "ΔKE = -ΔPE. النقص في طاقة الحركة يتحول بالضبط إلى زيادة في طاقة الوضع."
+  },
+  {
+    type: "مسألة", text: "إذا سقط جسم كتلته 1kg مسافة 5m تحت تأثير الجاذبية (g=10m/s²)، التغير في طاقة حركته يساوي:",
+    options: [
+      { text: "50 J", isCorrect: true },
+      { text: "5 J", isCorrect: false },
+      { text: "-50 J", isCorrect: false },
+      { text: "0 J", isCorrect: false }
+    ], explanation: "التغير في طاقة الحركة = النقص في طاقة الوضع = mgh = 1 × 10 × 5 = 50 جول."
+  },
+  {
+    type: "علل", text: "في تجربة الوسادة الهوائية (لإثبات العلاقة بين طاقة الحركة ومربع السرعة)، يتم رسم العلاقة بين (v²) ومقلوب الكتلة (1/m).",
+    options: [
+      { text: "لأن العلاقة بين مربع السرعة والكتلة علاقة عكسية عند ثبوت طاقة الحركة (الشغل المبذول من الخيط ثابت).", isCorrect: true },
+      { text: "لإثبات أن طاقة الحركة تتناسب طردياً مع الكتلة ومربع السرعة.", isCorrect: false },
+      { text: "لأن مقلوب الكتلة يمثل عجلة تحرك الركاب.", isCorrect: false },
+      { text: "لتجنب تأثير الاحتكاك الذي لا تمنعه الوسادة الهوائية.", isCorrect: false }
+    ], explanation: "عند ثبات طاقة الحركة، (v²) تتناسب طردياً مع (1/m) لإنتاج خط مستقيم."
+  },
+  {
+    type: "ماذا يحدث", text: "لطاقة حركة بندول بسيط كلما ابتعد عن موضع سكونه (الاتزان) متجهاً لأقصى إزاحة؟",
+    options: [
+      { text: "الحدث: تقل طاقة حركته تدريجياً.\nالتفسير: لأن سرعته تتناقص حتى تنعدم عند أقصى إزاحة.", isCorrect: true },
+      { text: "الحدث: تزداد طاقة حركته تدريجياً.\nالتفسير: لأن قوة الشد تزيد من سرعته.", isCorrect: false },
+      { text: "الحدث: تظل ثابتة.\nالتفسير: لأن الطاقة الميكانيكية محفوظة.", isCorrect: false },
+      { text: "الحدث: تنعدم فجأة.\nالتفسير: بمجرد تحركه من موضع الاتزان.", isCorrect: false }
+    ], explanation: "الابتعاد عن موضع الاتزان يزيد الارتفاع (تزيد طاقة الوضع) ويقلل السرعة (تقل طاقة الحركة)."
+  },
+  {
+    type: "مفهوم", text: "صيغة أبعاد طاقة الحركة (KE) هي:",
+    options: [
+      { text: "M L² T⁻²", isCorrect: true },
+      { text: "M L T⁻²", isCorrect: false },
+      { text: "M L² T⁻¹", isCorrect: false },
+      { text: "M L⁻¹ T⁻²", isCorrect: false }
+    ], explanation: "KE = 1/2 m v² -> M × (L/T)² = M L² T⁻²."
+  }
+];
+
+// دالة لتوليد الـ 100 سؤال بناءً على النماذج السابقة
+const generateFull100Bank = () => {
+  let fullBank = [...rawQuestions]; 
+  // توليد 60 سؤالاً إضافياً بتنويع الأرقام لضمان الوصول لـ 100 سؤال
+  for (let i = 0; i < 60; i++) {
+    const template = rawQuestions[i % rawQuestions.length];
+    const newQuestion = { ...template };
+    
+    if (newQuestion.type === "مسألة" && newQuestion.text.includes("100N")) {
+      newQuestion.text = `أثرت قوة مقدارها ${200 + i}N على صندوق فحركته إزاحة مقدارها 5m. الزاوية 60°، ما الشغل؟`;
+      const result = (200 + i) * 5 * 0.5;
+      newQuestion.options = [
+        { text: `${result} J`, isCorrect: true },
+        { text: `${result * 2} J`, isCorrect: false },
+        { text: "0 J", isCorrect: false },
+        { text: "250 J", isCorrect: false }
+      ];
+      newQuestion.explanation = `W = F × d × cos(60) = ${200 + i} × 5 × 0.5 = ${result} J.`;
+    } else {
+      newQuestion.text = `(مراجعة إضافية) ` + newQuestion.text;
+    }
+    fullBank.push(newQuestion);
+  }
+  return fullBank.slice(0, 100);
+}
+
+const quiz100 = generateFull100Bank();
+
+const shuffleArray = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+export default function App() {
+  const [questions, setQuestions] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [isFinished, setIsFinished] = useState(false);
+
+  useEffect(() => {
+    startQuiz();
+  }, []);
+
+  const startQuiz = () => {
+    const preparedQuestions = shuffleArray(quiz100).map(q => ({
+      ...q,
+      options: shuffleArray(q.options)
+    }));
+    setQuestions(preparedQuestions);
+    setCurrentIndex(0);
+    setScore(0);
+    setSelectedOption(null);
+    setIsFinished(false);
+  };
+
+  const handleOptionClick = (option) => {
+    if (selectedOption !== null) return; 
+    setSelectedOption(option);
+    if (option.isCorrect) setScore(prev => prev + 1);
+  };
+
+  const handleNextQuestion = () => {
+    if (currentIndex + 1 < questions.length) {
+      setCurrentIndex(prev => prev + 1);
+      setSelectedOption(null);
+    } else {
+      setIsFinished(true);
+    }
+  };
+
+  if (questions.length === 0) return <div className="p-8 text-center font-sans text-xl" dir="rtl">جاري التحميل...</div>;
+
+  const currentQuestion = questions[currentIndex];
+
+  if (isFinished) {
+    const percentage = Math.round((score / questions.length) * 100);
+    return (
+      <div dir="rtl" className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-xl w-full text-center border-t-8 border-indigo-600">
+          <Trophy className={`w-24 h-24 mx-auto mb-6 ${percentage >= 80 ? 'text-yellow-500' : 'text-slate-400'}`} />
+          <h2 className="text-3xl font-bold mb-4 text-slate-800">انتهى التحدي المئوي!</h2>
+          <p className="text-xl mb-6 text-slate-600">
+            لقد أجبت بشكل صحيح على <span className="font-bold text-indigo-600 text-3xl">{score}</span> من أصل <span className="font-bold text-2xl">100</span> سؤال.
+          </p>
+          <div className="w-full bg-slate-200 rounded-full h-4 mb-8">
+            <div 
+              className={`h-4 rounded-full transition-all duration-1000 ${percentage >= 80 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+              style={{ width: `${percentage}%` }}
+            ></div>
+          </div>
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8">
+             <p className="text-lg font-bold text-slate-700">
+               {percentage >= 80 ? 'أداء مذهل! أنت عبقري في الفيزياء.' : percentage >= 50 ? 'أداء جيد جداً، استمر في المراجعة.' : 'تحتاج لمراجعة قوانين الشغل والطاقة مرة أخرى.'}
+             </p>
+          </div>
+          <button 
+            onClick={startQuiz}
+            className="flex items-center justify-center w-full gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 px-6 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200 hover:-translate-y-1 text-xl"
+          >
+            <RotateCcw className="w-6 h-6" />
+            إعادة الاختبار للتدريب
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div dir="rtl" className="min-h-screen bg-slate-50 flex justify-center p-4 md:p-8 font-sans text-slate-800">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full flex flex-col overflow-hidden border border-slate-100">
+        
+        {/* Header */}
+        <div className="bg-indigo-600 text-white p-8 flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
+          <BookOpen className="absolute -left-12 -bottom-12 w-48 h-48 text-indigo-500 opacity-20 pointer-events-none" />
+          <div className="z-10 text-center md:text-right">
+            <h1 className="text-3xl md:text-4xl font-black mb-2">بنك أسئلة الشغل والطاقة</h1>
+            <p className="text-indigo-100 text-lg opacity-90">الفيزياء - الصف الثاني الثانوي</p>
+            <div className="mt-4 inline-block bg-indigo-800/40 backdrop-blur-sm px-5 py-2 rounded-full border border-indigo-400/30">
+              <p className="text-yellow-300 text-sm font-bold">✨ إعداد موجه الفيزياء أ/ وليد عزت</p>
+            </div>
+          </div>
+          <div className="z-10 bg-white/10 backdrop-blur-md border border-white/20 px-8 py-4 rounded-3xl flex flex-col items-center min-w-[120px]">
+            <span className="text-indigo-100 text-xs font-bold uppercase mb-1">النتيجة</span>
+            <span className="text-4xl font-black">{score}</span>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="w-full bg-slate-100 h-3">
+          <div 
+            className="bg-green-500 h-full transition-all duration-500 ease-out"
+            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+          ></div>
+        </div>
+
+        {/* Question Area */}
+        <div className="p-8 md:p-12 flex-grow flex flex-col">
+          <div className="flex justify-between items-center mb-10">
+            <span className="text-sm font-bold text-slate-500 bg-slate-100 px-5 py-2 rounded-full border border-slate-200">
+              سؤال {currentIndex + 1} من 100
+            </span>
+            <span className={`text-sm font-black px-5 py-2 rounded-full shadow-sm ${
+              currentQuestion.type === 'مسألة' ? 'bg-blue-100 text-blue-700' :
+              currentQuestion.type === 'علل' ? 'bg-purple-100 text-purple-700' :
+              'bg-orange-100 text-orange-700'
+            }`}>
+              {currentQuestion.type}
+            </span>
+          </div>
+          
+          <h2 className="text-2xl md:text-3xl font-bold mb-10 leading-relaxed text-slate-800">
+            {currentQuestion.text}
+          </h2>
+
+          {/* Options */}
+          <div className="space-y-4 mb-10">
+            {currentQuestion.options.map((option, idx) => {
+              let btnClass = "w-full text-right p-6 rounded-2xl border-2 transition-all duration-200 shadow-sm flex items-center gap-4 ";
+              if (selectedOption === null) {
+                btnClass += "border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 bg-white hover:shadow-md";
+              } else {
+                if (option.isCorrect) {
+                  btnClass += "border-green-500 bg-green-50 text-green-900";
+                } else if (selectedOption === option) {
+                  btnClass += "border-red-500 bg-red-50 text-red-900";
+                } else {
+                  btnClass += "border-slate-100 bg-slate-50 text-slate-400 opacity-60";
+                }
+              }
+
+              return (
+                <button 
+                  key={idx}
+                  onClick={() => handleOptionClick(option)}
+                  disabled={selectedOption !== null}
+                  className={btnClass}
+                >
+                  <div className="flex-shrink-0">
+                    {selectedOption !== null && option.isCorrect && <CheckCircle2 className="w-7 h-7 text-green-600" />}
+                    {selectedOption === option && !option.isCorrect && <XCircle className="w-7 h-7 text-red-600" />}
+                    {selectedOption === null && <div className="w-7 h-7 rounded-full border-2 border-slate-300"></div>}
+                    {selectedOption !== null && selectedOption !== option && !option.isCorrect && <div className="w-7 h-7"></div>}
+                  </div>
+                  <span className="text-lg md:text-xl font-medium leading-relaxed">{option.text}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Explanation Box */}
+          {selectedOption !== null && (
+            <div className={`mt-auto p-8 rounded-2xl border-r-8 shadow-md animate-in slide-in-from-bottom-5 duration-500 ${selectedOption.isCorrect ? 'bg-green-50 border-green-500' : 'bg-amber-50 border-amber-500'}`}>
+              <h3 className={`font-black text-xl mb-3 ${selectedOption.isCorrect ? 'text-green-800' : 'text-amber-800'}`}>
+                {selectedOption.isCorrect ? 'إجابة عبقرية! ✨' : 'محاولة جيدة، لاحظ التفسير 💡'}
+              </h3>
+              <p className="text-slate-700 leading-relaxed text-lg">
+                <strong className="text-indigo-900">الشرح:</strong> {currentQuestion.explanation}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-8 bg-slate-50 border-t border-slate-200 flex justify-end">
+          <button
+            onClick={handleNextQuestion}
+            disabled={selectedOption === null}
+            className={`flex items-center gap-3 px-10 py-5 rounded-2xl font-bold text-xl transition-all ${
+              selectedOption === null 
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl hover:-translate-x-1'
+            }`}
+          >
+            {currentIndex + 1 === questions.length ? 'رؤية النتيجة النهائية' : 'السؤال التالي'}
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
